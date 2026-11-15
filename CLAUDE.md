@@ -29,7 +29,7 @@ tools/pages.sh           # tests, size build, copy into docs/ for GitHub Pages; 
 
 ## Release
 
-Not released. Per the vault, new games start at GitHub Pages before itch.io is decided; making the repo public, enabling Pages and pushing are the user's call. The Release standard material (`ITCH_DESCRIPTION.md`, cover, screenshots, `tools/ship.sh`, `shippit.sh`) is not made yet. The footer's LootLocker "Send feedback" link is wired but hidden until `LL_DOMAIN` and `LL_KEY` are filled in.
+**Live on GitHub Pages: https://playdeezgames.github.io/codebusters-of-splorr/** (public repo `playdeezgames/codebusters-of-splorr`, Pages serves `main` `/docs`; since November 15, 2026). The user called it fine "for an experiment to leave on github pages". To update it run `tools/pages.sh`, commit `docs/` and push, on the user's word. On the portal (`oeuvre-of-splorr`) since November 15, 2026. No itch.io page; itch is undecided. The Release standard material (`ITCH_DESCRIPTION.md`, cover, screenshots, `tools/ship.sh`, `shippit.sh`) is not made yet. The footer's LootLocker "Send feedback" link is wired but hidden until `LL_DOMAIN` and `LL_KEY` are filled in.
 
 ## Rules
 
