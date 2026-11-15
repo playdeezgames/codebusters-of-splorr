@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codebusters of SPLORR!!</title>
+<style>
+  :root { --bg: #1b1426; --fg: #f1ece4; --dim: #a99cb8; --btn: #5a3d7a; --btn-hover: #7a55a3; --line: #3b2f4d;
+          --die: #f1ece4; --die-fg: #1b1426; --lock: #e8b84a; --sel: #6fd0c4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.5 Georgia, "Times New Roman", serif; }
+  main { max-width: 34rem; margin: 0 auto; padding: 24px 16px; min-height: 80vh; }
+  h1 { font-size: 1.5rem; margin: 0 0 1rem; letter-spacing: 0.02em; }
+  p { margin: 0 0 1rem; }
+  .stat { color: var(--dim); font-size: 0.95rem; margin: 0 0 0.75rem; }
+  .slots { display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem; }
+  .slot { flex: 1 1 0; max-width: 4.5rem; aspect-ratio: 1; font: bold 2rem/1 "Courier New", monospace; border-radius: 10px;
+          border: 2px solid var(--line); background: transparent; color: var(--dim); padding: 0; cursor: default; }
+  .slot.free { background: var(--die); color: var(--die-fg); border-color: var(--die); cursor: pointer; }
+  .slot.selected { background: var(--sel); color: var(--die-fg); border-color: var(--sel); cursor: pointer; transform: translateY(-4px); }
+  .slot.locked { background: var(--lock); color: var(--die-fg); border-color: var(--lock); }
+  .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+  .buttons button { font: inherit; font-size: 1rem; color: var(--fg); background: var(--btn); border: 0; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; }
+  .buttons button:hover, .buttons button:focus-visible { background: var(--btn-hover); }
+  .log { margin-top: 1.5rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+  .log h2 { font-size: 0.9rem; font-weight: normal; color: var(--dim); margin: 0 0 0.4rem; }
+  .log p { font: 1rem/1.6 "Courier New", monospace; margin: 0; white-space: pre; }
+  footer { max-width: 34rem; margin: 0 auto; padding: 16px; text-align: center; font-size: 0.8rem; color: var(--dim); }
+  footer a { color: #aaa; }
+</style>
+</head>
+<body>
+<main id="game" aria-live="polite"></main>
+<footer>
+  Codebusters of SPLORR!! by TheGrumpyGameDev. Code and words made by an AI agent (Claude Code) at the author's direction.<span class="ll-only" hidden> Feedback by LootLocker.</span>
+  <span class="ll-only" hidden><a href="#" id="feedback-link">Send feedback</a> · </span><a href="https://thegrumpygamedev.itch.io/">itch.io</a> · <a href="https://playdeezgames.github.io/oeuvre-of-splorr/">more games</a>
+</footer>
+<script src="odin.js"></script>
+<script src="lootlocker.js"></script>
+<script>
+// Feedback (the shared SPLORR!! LootLocker shim's form, splorr/Tech/LootLocker.md in the vault). The link
+// stays hidden until LL_KEY is filled in; making the LootLocker game is the user's call.
+const LL_DOMAIN = "";
+const LL_KEY = "";
+const feedback = LL_KEY ? LootLocker({
+  domain: LL_DOMAIN,
+  key: LL_KEY,
+  version: "0.1.0",
+  idKey: "codebusters:ll-player",
+}).feedbackDialog({ game: "Codebusters of SPLORR!!" }) : null;
+if (feedback) {
+  document.querySelectorAll(".ll-only").forEach((el) => { el.hidden = false; });
+  document.getElementById("feedback-link").addEventListener("click", (e) => { e.preventDefault(); feedback.open(); });
+}
+</script>
+<script>
+"use strict";
+(() => {
+  // Order must match Elem_Kind in odin/screens.odin.
+  const KIND = ["title", "text", "stat", "button", "slot-empty", "slot-free", "slot-selected", "slot-locked", "loghead", "log"];
+  const root = document.getElementById("game");
+  const memory = new odin.WasmMemoryInterface();
+  let pending = [];
+
+  const render = () => {
+    root.replaceChildren();
+    let group = null, groupCls = "";
+    const into = (cls) => {
+      if (!group || groupCls !== cls || group !== root.lastElementChild) {
+        group = document.createElement("div"); group.className = cls; groupCls = cls; root.append(group);
+      }
+      return group;
+    };
+    for (const e of pending) {
+      const kind = KIND[e.kind];
+      let el;
+      if (kind === "title") { el = document.createElement("h1"); el.textContent = e.text; root.append(el); }
+      else if (kind === "text") { el = document.createElement("p"); el.textContent = e.text; root.append(el); }
+      else if (kind === "stat") { el = document.createElement("p"); el.className = "stat"; el.textContent = e.text; root.append(el); }
+      else if (kind === "button") {
+        el = document.createElement("button"); el.type = "button"; el.textContent = e.text;
+        const action = e.action;
+        el.addEventListener("click", () => memory.exports.on_click(action));
+        into("buttons").append(el);
+      } else if (kind.startsWith("slot-")) {
+        const state = kind.slice(5);
+        el = document.createElement("button"); el.type = "button"; el.className = "slot " + state; el.textContent = e.text;
+        el.setAttribute("aria-label", state === "empty" ? "empty slot" : `${state} die ${e.text}`);
+        if (state === "free" || state === "selected") {
+          const action = e.action;
+          el.addEventListener("click", () => memory.exports.on_click(action));
+        } else {
+          el.disabled = true;
+        }
+        into("slots").append(el);
+      } else if (kind === "loghead") {
+        el = document.createElement("h2"); el.textContent = e.text; into("log").append(el);
+      } else if (kind === "log") {
+        el = document.createElement("p"); el.textContent = e.text; into("log").append(el);
+      }
+    }
+  };
+
+  odin.runWasm("game.wasm", null, {
+    env: {
+      now_ms: () => Date.now(),
+      dom_clear: () => { pending = []; },
+      dom_add: (kind, action, ptr, len) => { pending.push({ kind, action, text: memory.loadString(ptr, len) }); },
+      dom_end: render,
+    },
+  }, memory);
+})();
+</script>
+</body>
+</html>
